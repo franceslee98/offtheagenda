@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Off the Agenda</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;500;600&display=swap');
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            background: #FAF8F5; 
+            font-family: 'Inter', sans-serif; 
+            color: #1A1A1A; 
+            min-height: 100vh; 
+        }
+        
+        .serif { font-family: 'Playfair Display', serif; }
+        .sf { font-family: 'Inter', sans-serif; }
+        
+        textarea { 
+            font-family: 'Inter', sans-serif; 
+            font-size: 14px; 
+            line-height: 1.6; 
+            color: #333; 
+            background: #fff; 
+            border: 1px solid #E8E4DF; 
+            border-radius: 4px; 
+            padding: 12px 16px; 
+            outline: none; 
+            width: 100%; 
+            resize: vertical; 
+            transition: border-color 0.2s; 
+        }
+        textarea:focus { border-color: #B5824A; }
+
+        input[type="text"], input[type="date"] {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            padding: 6px 10px;
+            border: 1px solid #E8E4DF;
+            border-radius: 4px;
+            outline: none;
+            color: #333;
+            background: #fff;
+        }
+        input:focus { border-color: #1A1A1A; }
+        
+        .gradient-text {
+            background: linear-gradient(90deg, #B5824A, #4A5C8A, #7A4A6B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .panel-heading {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 700;
+            color: #888;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #E8E4DF;
+            padding-bottom: 6px;
+        }
+
+        button { cursor: pointer; transition: all 0.2s; border: none; background: none; }
+
+        .btn-primary {
+            background: #1A1A1A;
+            color: white;
+            padding: 10px 20px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+        .utility-btn {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            background: #fff;
+            border: 1px solid #E8E4DF;
+            border-radius: 4px;
+            padding: 6px 14px;
+            font-weight: 500;
+        }
+        .utility-btn:hover { border-color: #1A1A1A; color: #1A1A1A; background: #F8F5F0; }
+
+        .category-card {
+            background: #fff;
+            padding: 40px;
+            text-align: left;
+            border: 1px solid #E8E4DF;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+        }
+        .category-card:hover { border-color: #1A1A1A; transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.05); }
+
+        .q-row { user-select: none; border-bottom: 1px solid #EDEDED; transition: background 0.2s; }
+        .q-row:hover { background: #F9FAFB; }
+        .q-row:last-child { border-bottom: none; }
+        .dragging { opacity: 0.4; background: #f0ede8 !important; }
+        .drag-over { background: #F0F7FF !important; border-left-color: #3182CE !important; }
+
+        .drag-handle { cursor: grab; display: flex; align-items: center; justify-content: center; width: 48px; color: #CBD5E0; transition: color 0.2s; border-right: 1px solid #F5F5F5; }
+        .drag-handle:hover { color: #718096; background: #F7FAFC; }
+        .drag-handle:active { cursor: grabbing; }
+
+        .container { max-width: 1152px; margin: 0 auto; padding: 0 40px; }
+        .sticky-header { background: white; border-bottom: 1px solid #E8E4DF; padding: 32px 40px; position: sticky; top: 0; z-index: 50; }
+        
+        .star-btn { transition: all 0.2s; padding: 4px; border-radius: 4px; color: #718096; }
+        .star-btn:hover { background: rgba(0,0,0,0.05); transform: scale(1.1); color: #4A5568; }
+
+        #app { display: flex; flex-direction: column; min-height: 100vh; }
+        main { flex-grow: 1; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <input type="file" id="import-file" style="display:none" accept=".html"/>
+
+    <script>
+        // Data Configuration
+        var CATS = [
+            { id: "fun", label: "Breaking the Ice", sub: "Finding our common ground", color: "#B5824A" },
+            { id: "team", label: "Building the Team", sub: "Relationships & dynamics", color: "#3A6B5C" },
+            { id: "goals", label: "Understanding Collective Goals", sub: "Shared purpose & direction", color: "#4A5C8A" },
+            { id: "change", label: "Handling Change", sub: "Navigating uncertainty together", color: "#7A4A6B" }
+        ];
+
+        var QS = {
+            fun: ["What is something interesting you have noticed about your coworker(s)?", "What is something unique you observed about your supervisor?", "What is your favorite part of working with your team? Is there anything that could create more enjoyable moments?", "What are some events or activities you would like to attend with your team?", "How can you incorporate play into your team's everyday rhythms?", "If you were to brag about your coworkers to others, what would you say?", "What are some core memories that you have formed with your coworkers?", "What have been some of your and your coworkers' most enjoyable moments together?", "How have you grown as a coworker during your time at the organization?", "How would you describe yourself as a team member in one word?", "If you had to compare your team to a vehicle, what would it be and where are you going?", "If you had to compare your journey as a team to one of these scenarios, which would it be and why?\n1. Rowing a boat together along a river\n2. Getting through a jungle\n3. Building a bridge that you need to cross together", "What is something you would like to learn from your coworkers?\n||e.g. one of their hobbies, like juggling."],
+            team: ["What do you think are your team's strengths and weaknesses?", "What was your first impression of your coworker(s)?", "How would you describe your relationship with your supervisor?", "How else can we try to encourage diverse voices to speak up during meetings?", "What might a more efficient process look like?", "What rhythms are currently working well for you and your coworkers? What is not working well?", "What are your current modes of communication with your supervisor? Are there any changes you would make?", "What can we do differently to make our meetings more productive and supportive?", "How can your and your coworkers' relationships be strengthened?", "How will you approach your next team, given what you have learned from this one?", "What additional support would you want from your supervisor?", "If you had to describe your team's journey as a puzzle, how far along would you say you are?\n||e.g. are the edges completed but the rest is a mystery? Is there a missing piece?", "What are some recent wins that you and your coworkers have experienced together? Some setbacks? How did it impact your group's dynamics?"],
+            goals: ["In your own words, what is the main goal you and your coworker(s) are working towards?", "What role does your supervisor play in forming your team's goals?", "What have you and your coworker(s) accomplished that you are most proud of?", "In what ways do you or do you not feel supported by your supervisor in your team's goals?", "If you had to describe what your group's collective goal was, how would you do that?", "If you were confused about your team's collective goal, who would you talk to and why?", "How comfortable are you with asking follow-up questions regarding the team's goal(s)?", "How can the group's collective goal(s) be clearer?", "In what ways do you feel excited about your collective goal(s)?", "What are the most confusing parts of your collective goal(s)?", "Complete the sentence: Reaching our goal feels like…", "^^We’re going to define our collective goal in a single sentence, one person at a time.||The first person will start the sentence with one word, and we’ll go around the room until the sentence feels complete. (Anyone can say “Period” when they think the sentence is complete.)"],
+            change: ["How do you think you and your coworker(s) would react if there was a change introduced to your work?", "How do you react in a time of crisis? And how can your coworker(s) support you in that?", "What is the biggest source of uncertainty you are experiencing as a team right now?", "How do you and your coworker(s) react to change? Do you turn to each other or handle it on your own?", "If you had to change your collective goal right now, how would you all respond?", "How can you and your coworker(s) improve the current processes you have in place?", "How do you address discussion about change with your supervisor?", "How has working with your coworker(s) changed the ways in which you respond to change?", "How have you as a team evolved in the ways you react to change in your work?", "In what ways do you confide in your coworker(s) during times of organizational change?", "Why do you think you and your coworker(s) reacted to a previous change the way you all did?", "How did your supervisor introduce and manage conversations about change with you?", "Name 3 emotions you feel when there is change in your team or organization."]
+        };
+
+        var PP = ["How did you feel as you shared your thoughts with your coworkers?", "In what ways has your perception of your coworkers changed, if at all?", "How did your understanding of the team, project, or goal change?", "How comfortable are you with contributing in team meetings or discussions?", "How did your comfort level change after this activity?", "How did these questions influence your approach to communicating with your supervisor or to the company?", "Is there anything you wanted to say today that you did not have the chance to share? If so, please include here if you’d like."];
+        var FP = ["What was your most prominent takeaway from this discussion?", "How were you surprised by the group members in how or what they shared?", "If you were to facilitate a similar discussion again, what would you change or keep the same?", "What were the benefits of this conversation?", "What were the areas of improvement for this conversation?", "Who were you most surprised to hear from?", "How did this activity influence your perspective of coworker discussions?", "Is there anyone in the group you will reach out to speak with in the future?", "How will you approach future meetings, based on what you learned today?"];
+
+        // State Management
+        var S = {
+            page: "home", catId: null, stagedIdx: null, notes: {}, noteTab: "pre",
+            starred: {}, debriefTab: "p", showInstructions: false,
+            fn: new Array(FP.length).fill(""), pn: new Array(PP.length).fill(""),
+            order: {}, sessionMeta: { facilitator: '', attendees: '', date: new Date().toISOString().split('T')[0] },
+            copyFlash: false
+        };
+
+        function xe(s) { if(!s) return ""; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;'); }
+        function getFormattedDate(dStr) { if(!dStr) return "N/A"; var parts = dStr.split('-'); return new Date(parts[0], parts[1]-1, parts[2]).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }); }
+
+        // Logic Helpers
+        function getStarredCount() { return Object.values(S.starred).filter(v => v === true).length; }
+        function hasProgress() {
+            var n = Object.values(S.notes).some(v => (v.pre && v.pre.trim()) || (v.during && v.during.trim()));
+            var s = getStarredCount() > 0;
+            var d = S.fn.some(f => f.trim()) || S.pn.some(p => p.trim());
+            return n || s || d;
+        }
+        function getDisplayOrder(cid) {
+            var cid = cid || S.catId;
+            if(!S.order[cid]) S.order[cid] = QS[cid].map((_, i) => i);
+            var s = [], u = [];
+            S.order[cid].forEach(idx => { if(S.starred[cid+"_"+idx]) s.push(idx); else u.push(idx); });
+            return [...s, ...u];
+        }
+        function getDebriefOrder(type) {
+            var list = type === 'p' ? PP : FP;
+            var s = [], u = [];
+            list.forEach((_, i) => { if(S.starred["debrief_"+type+"_"+i]) s.push(i); else u.push(i); });
+            return [...s, ...u];
+        }
+
+        // --- EXPORT logic ---
+        function ZipWriter() { this.files = []; this.offset = 0; }
+        ZipWriter.prototype.crc32 = function(str) { var table = []; for (var i = 0; i < 256; i++) { var c = i; for (var j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); table[i] = c; } var crc = 0 ^ (-1); var bytes = new TextEncoder().encode(str); for (var i = 0; i < bytes.length; i++) { crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 0xFF]; } return (crc ^ (-1)) >>> 0; };
+        ZipWriter.prototype.u32 = function(n) { return [n & 0xFF, (n >> 8) & 0xFF, (n >> 16) & 0xFF, (n >> 24) & 0xFF]; };
+        ZipWriter.prototype.addFile = function(name, content) { var nb = new TextEncoder().encode(name), cb = new TextEncoder().encode(content), crc = this.crc32(content); var header = [0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, ...this.u32(crc), ...this.u32(cb.length), ...this.u32(cb.length), nb.length & 0xFF, (nb.length >> 8) & 0xFF, 0x00, 0x00]; this.files.push({ name: nb, data: cb, crc, offset: this.offset, header: new Uint8Array(header) }); this.offset += header.length + nb.length + cb.length; };
+        ZipWriter.prototype.build = function() { var total = this.offset, cdSize = 0; for(var f of this.files) cdSize += 46 + f.name.length; total += cdSize + 22; var out = new Uint8Array(total), pos = 0; for(var f of this.files){ out.set(f.header, pos); pos += f.header.length; out.set(f.name, pos); pos += f.name.length; out.set(f.data, pos); pos += f.data.length; } var cdStart = pos; for(var f of this.files){ var cdH = [0x50, 0x4B, 0x01, 0x02, 0x14, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, ...this.u32(f.crc), ...this.u32(f.data.length), ...this.u32(f.data.length), f.name.length & 0xFF, (f.name.length >> 8) & 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, ...this.u32(f.offset)]; out.set(new Uint8Array(cdH), pos); pos += cdH.length; out.set(f.name, pos); pos += f.name.length; } var eocd = [0x50, 0x4B, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00, this.files.length & 0xFF, (this.files.length >> 8) & 0xFF, this.files.length & 0xFF, (this.files.length >> 8) & 0xFF, ...this.u32(cdSize), ...this.u32(cdStart), 0x00, 0x00]; out.set(new Uint8Array(eocd), pos); return new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }); };
+
+        function wpara(text, bold, size, color, spacing) {
+            var rPr = `<w:rPr>${bold ? '<w:b/>' : ''}<w:sz w:val="${size || 24}"/><w:szCs w:val="${size || 24}"/><w:color w:val="${color || '000000'}"/><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/></w:rPr>`;
+            var lines = (text || "").split('\n');
+            var runs = lines.map(l => `<w:r>${rPr}<w:t xml:space="preserve">${xe(l)}</w:t></w:r>`).join('<w:r><w:br/></w:r>');
+            return `<w:p><w:pPr><w:spacing w:after="${spacing || 0}"/></w:pPr>${runs}</w:p>`;
+        }
+
+        window.handleWordExport = function() {
+            var body = wpara("OFF THE AGENDA", true, 48, "000000", 240);
+            body += wpara("SESSION REPORT", false, 28, "666666", 480);
+            body += wpara("Date: " + getFormattedDate(S.sessionMeta.date), true, 24, "000000", 0);
+            body += wpara("Facilitator: " + (S.sessionMeta.facilitator || "N/A"), false, 24, "000000", 0);
+            body += wpara("Attendees: " + (S.sessionMeta.attendees || "N/A"), false, 24, "000000", 480);
+            body += `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="1" w:color="CCCCCC"/></w:pBdr></w:pPr></w:p>`;
+
+            CATS.forEach(c => {
+                getDisplayOrder(c.id).forEach(idx => {
+                    var sk = c.id + "_" + idx;
+                    if(S.starred[sk] || (S.notes[sk] && (S.notes[sk].pre || S.notes[sk].during))) {
+                        body += wpara((S.starred[sk] ? '[STARRED] ' : '') + QS[c.id][idx].split("||")[0].replace("^^", ""), true, 28, "000000", 120);
+                        body += wpara("Category: " + c.label, false, 18, "888888", 240);
+                        if(S.notes[sk]?.pre) { body += wpara("Reflections (Before):", true, 20, "555555", 0); body += wpara(S.notes[sk].pre, false, 24, "000000", 240); }
+                        if(S.notes[sk]?.during) { body += wpara("Observations (During):", true, 20, "555555", 0); body += wpara(S.notes[sk].during, false, 24, "000000", 240); }
+                        body += `<w:p><w:pPr><w:spacing w:before="240" w:after="240"/><w:pBdr><w:bottom w:val="dotted" w:sz="4" w:space="1" w:color="EEEEEE"/></w:pBdr></w:pPr></w:p>`;
+                    }
+                });
+            });
+
+            if(S.fn.some(f => f.trim()) || S.pn.some(p => p.trim())) {
+                body += wpara("DEBRIEF NOTES", true, 36, "000000", 480);
+                if(S.fn.some(f => f.trim())) {
+                    body += wpara("FACILITATOR REFLECTIONS", true, 24, "4A5C8A", 240);
+                    getDebriefOrder('f').forEach(idx => { if(S.fn[idx]?.trim()) { body += wpara((S.starred["debrief_f_"+idx] ? '[STARRED] ' : '') + FP[idx], true, 20, "000000", 0); body += wpara(S.fn[idx], false, 24, "000000", 240); } });
+                }
+                if(S.pn.some(p => p.trim())) {
+                    body += wpara("PARTICIPANT FEEDBACK", true, 24, "B5824A", 240);
+                    getDebriefOrder('p').forEach(idx => { if(S.pn[idx]?.trim()) { body += wpara((S.starred["debrief_p_"+idx] ? '[STARRED] ' : '') + PP[idx], true, 20, "000000", 0); body += wpara(S.pn[idx], false, 24, "000000", 240); } });
+                }
+            }
+
+            var zip = new ZipWriter();
+            zip.addFile("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
+            zip.addFile("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+            zip.addFile("word/document.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>`);
+            var a = document.createElement("a"); a.href = URL.createObjectURL(zip.build()); a.download = `OffTheAgenda_Report_${S.sessionMeta.date}.docx`; a.click();
+        }
+
+        window.saveHTML = function() {
+            var data = btoa(encodeURIComponent(JSON.stringify(S)));
+            var fullHtml = document.documentElement.outerHTML;
+            var updatedHtml = fullHtml.replace(/var S = \{[\s\S]*?\};/, "var S = JSON.parse(decodeURIComponent(atob('" + data + "')));");
+            var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([updatedHtml], {type: "text/html"})); a.download = `OffTheAgenda_Save_${S.sessionMeta.date}.html`; a.click();
+        };
+
+        // --- RENDER ENGINE ---
+        function render() {
+            var app = document.getElementById('app');
+            var html = `
+                <div class="sticky-header flex justify-between items-center shadow-sm">
+                    <div onclick="goTo('home')" class="cursor-pointer">
+                        <h1 class="serif gradient-text text-5xl font-bold tracking-tight mb-4 leading-[1.2] pb-2">Off the Agenda</h1>
+                        <p class="text-sm uppercase tracking-[4px] text-gray-400 font-bold mt-4">Strategic Coworker Connection</p>
+                    </div>
+                    <div class="flex gap-3 items-center">
+                        <button class="utility-btn" onclick="document.getElementById('import-file').click()">📂 Import</button>
+                        <button class="utility-btn" onclick="toggleInstructions()">Instructions</button>
+                        ${getStarredCount() > 0 ? `<button onclick="copyQuestions()" class="btn-primary !bg-[#3A6B5C] !text-[10px] py-2 px-3">${S.copyFlash ? 'Copied!' : 'Copy Questions ('+getStarredCount()+')'}</button>` : ''}
+                        ${S.page !== 'home' ? `<button class="utility-btn !border-[#1A1A1A] !text-[#1A1A1A]" onclick="goTo('home')">Home</button>` : ''}
+                    </div>
+                </div>
+
+                <div class="bg-white border-b border-[#E8E4DF] px-10 py-3 flex gap-8 items-center text-xs overflow-x-auto">
+                    <div class="flex items-center gap-2 whitespace-nowrap">
+                        <span class="uppercase font-bold text-gray-400 tracking-wider">Date</span>
+                        <input type="date" value="${S.sessionMeta.date}" onchange="updateMeta('date', this.value)" class="border-none bg-gray-50 px-2 py-1" />
+                    </div>
+                    <div class="flex items-center gap-2 whitespace-nowrap">
+                        <span class="uppercase font-bold text-gray-400 tracking-wider">Facilitator</span>
+                        <input type="text" placeholder="Name" value="${xe(S.sessionMeta.facilitator)}" oninput="updateMeta('facilitator', this.value)" class="border-none bg-gray-50 px-2 py-1 w-32" />
+                    </div>
+                    <div class="flex items-center gap-2 flex-1 whitespace-nowrap">
+                        <span class="uppercase font-bold text-gray-400 tracking-wider">With</span>
+                        <input type="text" placeholder="Attendee names..." value="${xe(S.sessionMeta.attendees)}" oninput="updateMeta('attendees', this.value)" class="border-none bg-gray-50 px-2 py-1 flex-1 max-w-md" />
+                    </div>
+                </div>
+
+                <main class="flex-grow pt-8 pb-32">
+                    <div class="container">${renderPage()}</div>
+                </main>
+
+                ${S.showInstructions ? renderInstructions() : ''}
+                <div class="flex flex-col">
+                    ${hasProgress() ? renderStickyBanner() : ''}
+                    <footer class="px-10 py-12 text-center border-t border-gray-100 bg-white">
+                        <p class="text-[11px] uppercase tracking-widest font-bold text-gray-300">Developed by Frances Lee &middot; USC M.S. in Applied Psychology</p>
+                    </footer>
+                </div>
+            `;
+            app.innerHTML = html;
+        }
+
+        function renderPage() {
+            if (S.page === 'home') return renderHome();
+            if (S.page === 'session') return renderSession();
+            if (S.page === 'debrief') return renderDebrief();
+        }
+
+        function renderHome() {
+            return `
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 py-8">
+                    <div class="lg:col-span-4 space-y-8">
+                        <h2 class="serif text-4xl leading-tight font-bold">A purposeful space for coworker reflections.</h2>
+                        <p class="text-gray-500 text-sm leading-relaxed">Move beyond status updates. Off the Agenda provides structured prompts to deepen relationships, align on goals, and navigate change.</p>
+                        <div class="space-y-4 pt-4">
+                            <div class="panel-heading">How it works</div>
+                            ${["Choose a focus area", "Star relevant questions", "Record insights live", "Export formal report"].map((step, i) => `
+                                <div class="flex gap-4 items-center">
+                                    <span class="text-[10px] font-bold text-gray-300">0${i+1}</span>
+                                    <span class="text-sm font-semibold">${step}</span>
+                                </div>`).join('')}
+                        </div>
+                    </div>
+                    <div class="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        ${CATS.map(c => `
+                            <div onclick="startSession('${c.id}')" class="category-card cursor-pointer group">
+                                <div class="w-12 h-1 mb-6" style="background: ${c.color}"></div>
+                                <h3 class="serif text-2xl font-bold mb-2 group-hover:text-[#B5824A] transition-colors">${c.label}</h3>
+                                <p class="text-gray-400 text-sm mb-8">${c.sub}</p>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] font-bold tracking-widest uppercase text-gray-300">${QS[c.id].length} prompts</span>
+                                    <span class="text-xl group-hover:translate-x-1 transition-transform">→</span>
+                                </div>
+                            </div>`).join('')}
+                    </div>
+                </div>`;
+        }
+
+        function renderSession() {
+            var activeCat = CATS.find(c => c.id === S.catId);
+            return `
+                <div class="py-4">
+                    <div class="flex justify-between items-end mb-8">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <div class="w-4 h-1" style="background: ${activeCat.color}"></div>
+                                <span class="text-[10px] font-bold tracking-widest uppercase" style="color: ${activeCat.color}">${activeCat.label}</span>
+                            </div>
+                            <h2 class="serif text-3xl font-bold">Question Selection</h2>
+                            <p class="text-[10px] text-slate-400 uppercase tracking-wider font-bold mt-1">
+                                <span class="text-slate-300 mr-1">↕</span> Grab the handles on the left to reorder starred cards
+                            </p>
+                        </div>
+                        <button onclick="goTo('debrief')" class="btn-primary !bg-white !text-black border border-gray-200">Next: Final Debrief</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div class="lg:col-span-5 space-y-1 h-[600px] overflow-y-auto pr-2" id="q-bank">
+                            <div class="panel-heading">Prompt Bank</div>
+                            ${getDisplayOrder().map(idx => {
+                                var sk = S.catId + "_" + idx;
+                                var isStaged = S.stagedIdx === idx;
+                                return `
+                                    <div draggable="true" 
+                                         ondragstart="onDragStart(event, ${idx})" 
+                                         ondragover="event.preventDefault()" 
+                                         ondragenter="onDragEnter(event)"
+                                         ondragleave="onDragLeave(event)"
+                                         ondrop="onDrop(event, ${idx})"
+                                         class="q-row p-0 transition-all flex items-stretch border-l-4 ${isStaged ? 'bg-white shadow-md border-gray-800' : 'border-transparent'}">
+                                        
+                                        <div class="drag-handle hover:bg-slate-100" title="Grab here to drag" style="width: 52px; font-size: 20px;">
+                                            <svg width="12" height="18" viewBox="0 0 12 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="pointer-events: none;">
+                                                <circle cx="2" cy="3" r="1.5" fill="currentColor"/>
+                                                <circle cx="2" cy="9" r="1.5" fill="currentColor"/>
+                                                <circle cx="2" cy="15" r="1.5" fill="currentColor"/>
+                                                <circle cx="10" cy="3" r="1.5" fill="currentColor"/>
+                                                <circle cx="10" cy="9" r="1.5" fill="currentColor"/>
+                                                <circle cx="10" cy="15" r="1.5" fill="currentColor"/>
+                                            </svg>
+                                        </div>
+
+                                        <button onclick="event.stopPropagation(); toggleStar('${sk}')" class="star-btn text-xl mx-1" style="color: ${S.starred[sk] ? activeCat.color : '#A0AEC0'}">
+                                            ${S.starred[sk] ? '★' : '☆'}
+                                        </button>
+
+                                        <div onclick="stageQuestion(${idx})" class="flex-1 py-4 pr-4 pl-1 cursor-pointer">
+                                            <p class="text-sm leading-relaxed ${isStaged ? 'font-semibold text-gray-900' : 'text-gray-600'}">${QS[S.catId][idx].split("||")[0].replace("^^", "")}</p>
+                                        </div>
+                                    </div>`;
+                            }).join('')}
+                        </div>
+                        <div class="lg:col-span-7">
+                            ${S.stagedIdx === null ? `<div class="h-full border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center text-gray-400 text-sm">Select a prompt from the left to begin recording notes</div>` : renderNoteArea()}
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function renderNoteArea() {
+            var activeCat = CATS.find(c => c.id === S.catId);
+            var sk = S.catId + "_" + S.stagedIdx;
+            return `
+                <div class="bg-white p-10 border border-gray-200 rounded-xl shadow-sm sticky top-32">
+                    <div class="w-8 h-1 mb-6" style="background: ${activeCat.color}"></div>
+                    <h3 class="serif text-2xl font-bold mb-8 leading-tight">${QS[S.catId][S.stagedIdx].replace("^^", "").split("||")[0]}</h3>
+                    <div class="flex gap-8 border-b border-gray-100 mb-6">
+                        ${['pre', 'during'].map(tab => `
+                            <button onclick="setTab('${tab}')" class="pb-4 text-[10px] font-bold uppercase tracking-widest ${S.noteTab === tab ? 'text-black border-b-2 border-black' : 'text-gray-300'}">
+                                ${tab === 'pre' ? 'Pre-Reflections' : 'Session Notes'}
+                            </button>`).join('')}
+                    </div>
+                    <textarea rows="8" placeholder="Record notes here..." oninput="updateNote('${sk}', this.value)">${S.notes[sk]?.[S.noteTab] || ""}</textarea>
+                </div>`;
+        }
+
+        function renderDebrief() {
+            return `
+                <div class="max-w-3xl mx-auto py-8">
+                    <h2 class="serif text-4xl font-bold mb-4 text-center">Closing Debrief</h2>
+                    <p class="text-gray-400 text-center text-sm mb-12">Capture final takeaways before generating your report.</p>
+                    <div class="flex justify-center gap-12 border-b border-gray-100 mb-12">
+                        ${['p', 'f'].map(tab => `
+                            <button onclick="setDebriefTab('${tab}')" class="pb-4 text-[11px] font-bold uppercase tracking-widest ${S.debriefTab === tab ? 'text-black border-b-2 border-black' : 'text-gray-300'}">
+                                ${tab === 'p' ? 'Participant Debrief' : 'Facilitator Debrief'}
+                            </button>`).join('')}
+                    </div>
+                    <div class="space-y-12">
+                        ${getDebriefOrder(S.debriefTab).map(idx => {
+                            var q = (S.debriefTab === 'p' ? PP : FP)[idx];
+                            var sk = "debrief_" + S.debriefTab + "_" + idx;
+                            return `
+                                <div class="space-y-4 border-b border-gray-100 pb-8 last:border-0">
+                                    <div class="flex items-start gap-4">
+                                        <button onclick="toggleStar('${sk}')" class="star-btn text-xl mt-1" style="color: ${S.starred[sk] ? '#1A1A1A' : '#A0AEC0'}">
+                                            ${S.starred[sk] ? '★' : '☆'}
+                                        </button>
+                                        <p class="serif text-xl font-bold">${q}</p>
+                                    </div>
+                                    <textarea rows="4" oninput="updateDebrief(${idx}, this.value)" placeholder="Enter reflection...">${S.debriefTab === 'p' ? S.pn[idx] : S.fn[idx]}</textarea>
+                                </div>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+        }
+
+        function renderInstructions() {
+            return `
+                <div class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-6" onclick="toggleInstructions()">
+                    <div class="bg-white max-w-2xl w-full p-10 rounded-2xl shadow-2xl space-y-8 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                        <div class="flex justify-between items-start"><h3 class="serif text-3xl font-bold">Instructions</h3><button onclick="toggleInstructions()" class="text-2xl text-gray-300 hover:text-black">×</button></div>
+                        <div class="space-y-6">
+                            <div><div class="panel-heading">About <i>Off the Agenda</i></div>
+                            <p class="text-sm leading-relaxed text-gray-700 mb-4">Welcome to <i>Off the Agenda</i> – the purpose-driven set of questions meant to spark conversation with your coworkers. We understand that it can be hard sometimes to share your thoughts at work, especially in front of your teammates or supervisors. Through <i>Off the Agenda</i>, coworkers can open up through a variety of questions, like “If you had to compare your team to a vehicle, what would it be and where are you going?”</p>
+                            <p class="text-sm leading-relaxed text-gray-700">While some of these conversations might be in front of a supervisor or a (maybe difficult 👀) coworker, we encourage participants to be as honest as possible, while still maintaining a bit of professionalism 😉</p></div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm leading-relaxed pt-4 border-t border-gray-100">
+                                <div class="space-y-4">
+                                    <div class="panel-heading">Cadence</div>
+                                    <p>Use at least every <strong>6 months</strong>. Maintain consistency to track growth and organizational shifts.</p>
+                                    <div class="panel-heading">The Environment</div>
+                                    <p>Ensure a psychological safe space. Remind participants: <i>"There are no wrong answers here. Honesty helps us build a stronger team."</i></p>
+                                </div>
+                                <div class="space-y-4">
+                                    <div class="panel-heading">Active Listening</div>
+                                    <p>As the facilitator, you should speak 20% of the time. Validate thoughts and ask: <i>"Anything else on your mind?"</i></p>
+                                    <div class="panel-heading">Prep Work</div>
+                                    <p>Send the <strong>Starred Questions</strong> to participants 2-3 days before the session so they have time to reflect.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function renderStickyBanner() {
+            return `
+                <div class="fixed bottom-8 right-8 z-[60] flex flex-col items-end gap-3">
+                    <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-xl flex gap-3 animate-in fade-in slide-in-from-bottom-4">
+                        <div class="flex flex-col">
+                            <div class="flex items-center gap-2">
+                                <span class="text-yellow-500 text-base">⚠️</span>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Active Session: Make sure to save</span>
+                            </div>
+                            <span class="text-xs font-bold pl-6">${getStarredCount()} ${getStarredCount() === 1 ? 'Starred Item' : 'Starred Items'}</span>
+                        </div>
+                        <div class="w-[1px] bg-gray-100 mx-1"></div>
+                        <div class="flex gap-2">
+                            <button onclick="saveHTML()" class="utility-btn !border-blue-100 !text-blue-600">Save HTML</button>
+                            <button onclick="handleWordExport()" class="btn-primary !py-2 !px-4">Export .docx</button>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        // --- INTERACTION HANDLERS ---
+        window.goTo = function(page) { S.page = page; render(); };
+        window.startSession = function(cid) { S.catId = cid; S.page = 'session'; S.stagedIdx = null; render(); };
+        window.toggleInstructions = function() { S.showInstructions = !S.showInstructions; render(); };
+        window.setTab = function(tab) { S.noteTab = tab; render(); };
+        window.setDebriefTab = function(tab) { S.debriefTab = tab; render(); };
+        window.stageQuestion = function(idx) { S.stagedIdx = idx; render(); };
+        window.toggleStar = function(key) { S.starred[key] = !S.starred[key]; render(); };
+        window.updateMeta = function(f, v) { S.sessionMeta[f] = v; };
+        window.updateNote = function(sk, v) { if(!S.notes[sk]) S.notes[sk] = { pre: '', during: '' }; S.notes[sk][S.noteTab] = v; };
+        window.updateDebrief = function(i, v) { if(S.debriefTab === 'p') S.pn[i] = v; else S.fn[i] = v; };
+
+        window.onDragStart = function(e, idx) { 
+            e.dataTransfer.setData('text/plain', idx); 
+            e.currentTarget.classList.add('dragging'); 
+        };
+        window.onDragEnter = function(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); };
+        window.onDragLeave = function(e) { e.currentTarget.classList.remove('drag-over'); };
+        window.onDrop = function(e, targetIdx) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            var sourceIdx = parseInt(e.dataTransfer.getData('text/plain'));
+            var arr = S.order[S.catId];
+            var from = arr.indexOf(sourceIdx), to = arr.indexOf(targetIdx);
+            arr.splice(from, 1); arr.splice(to, 0, sourceIdx);
+            render();
+        };
+
+        window.copyQuestions = function() {
+            var msg = "Off the Agenda Questions:\n\n";
+            CATS.forEach(c => {
+                var items = getDisplayOrder(c.id).filter(i => S.starred[c.id+"_"+i]);
+                if(items.length) {
+                    msg += `--- ${c.label} ---\n` + items.map((idx, n) => `${n+1}. ${QS[c.id][idx].split("||")[0]}`).join('\n') + "\n\n";
+                }
+            });
+            var ta = document.createElement("textarea"); ta.value = msg; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+            S.copyFlash = true; render(); setTimeout(() => { S.copyFlash = false; render(); }, 2000);
+        };
+
+        // Import handling
+        document.getElementById('import-file').addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var content = e.target.result;
+                var match = content.match(/var S = JSON\.parse\(decodeURIComponent\(atob\('([^']+)'\)\)\);/);
+                if (match && match[1]) {
+                    try {
+                        S = JSON.parse(decodeURIComponent(atob(match[1])));
+                        render();
+                    } catch (err) { console.error("Parse error", err); }
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        window.onload = render;
+    </script>
+</body>
+</html>
